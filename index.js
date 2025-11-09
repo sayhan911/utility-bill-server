@@ -1,9 +1,6 @@
-// utility-bill
-// NeccX94TI5jxD1f2
-
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -30,6 +27,49 @@ async function run() {
   try {
     await client.connect();
 
+    const db = client.db("utility_db");
+    const billsCollection = db.collection("bills");
+
+    app.get("/bills", async (req, res) => {
+      const cursor = billsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/bills/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await billsCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.post("/bills", async (req, res) => {
+      const newBill = req.body;
+      const result = await billsCollection.insertOne(newBill);
+      res.send(result);
+    });
+
+    app.patch("/bills/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedBill = req.body;
+      const query = { _id: new ObjectId(id) };
+      const update = {
+        $set: {
+          name: updatedBill.name,
+          amount: updatedBill.amount,
+        },
+      };
+      const result = await billsCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    app.delete("/bills/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await billsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -42,5 +82,5 @@ async function run() {
 run().catch(console.dir);
 
 app.listen(port, () => {
-  console.log(`Utility Bill server is running on ${port}`);
+  console.log(`Utility Bill server is running on port ${port}`);
 });
