@@ -71,6 +71,17 @@ async function run() {
       res.send(result);
     });
 
+    // API to get payments for a specific user
+    app.get("/payments", async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" });
+      }
+      const query = { email: email };
+      const result = await paymentsCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // recent bill
     app.get("/recent-bills", async (req, res) => {
       const cursor = billsCollection.find().sort({ date: -1 }).limit(6);
