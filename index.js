@@ -1,15 +1,15 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// middleware
-app.use(cors());
-app.use(express.json());
-
-const uri =
-  "mongodb+srv://utility-bill:NeccX94TI5jxD1f2@cluster0.eoqyygq.mongodb.net/?appName=Cluster0";
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  console.error("MONGODB_URI is not set in the environment.");
+  process.exit(1);
+}
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -63,6 +63,28 @@ async function run() {
       res.send(result);
     });
 
+    // recent bill
+    app.get("/recent-bills", async (req, res) => {
+      const cursor = billsCollection.find().sort({ date: -1 }).limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // get specific bill by id
+    app.get("/bills/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await billsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // post a bill
+    app.post("/bills", async (req, res) => {
+      const newBill = req.body;
+      const result = await billsCollection.insertOne(newBill);
+      res.send(result);
+    });
+
     // API to save a payment
     app.post("/payments", async (req, res) => {
       const paymentInfo = req.body;
@@ -79,26 +101,6 @@ async function run() {
       }
       const query = { email: email };
       const result = await paymentsCollection.find(query).toArray();
-      res.send(result);
-    });
-
-    // recent bill
-    app.get("/recent-bills", async (req, res) => {
-      const cursor = billsCollection.find().sort({ date: -1 }).limit(6);
-      const result = await cursor.toArray();
-      res.send(result);
-    });
-
-    app.get("/bills/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await billsCollection.findOne(query);
-      res.send(result);
-    });
-
-    app.post("/bills", async (req, res) => {
-      const newBill = req.body;
-      const result = await billsCollection.insertOne(newBill);
       res.send(result);
     });
 
