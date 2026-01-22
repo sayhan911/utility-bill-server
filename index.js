@@ -82,7 +82,7 @@ async function run() {
         const result = await billsCollection
           .find()
           .sort({ date: -1 })
-          .limit(6)
+          .limit(8)
           .toArray();
         res.send(result);
       } catch (err) {
@@ -119,13 +119,74 @@ async function run() {
       }
     });
 
+    // update a bill
+    app.put("/bills/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedBill = req.body;
+        delete updatedBill._id; // Remove _id from update data
+
+        const result = await billsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedBill }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Bill not found" });
+        }
+
+        res.send({
+          message: "Bill updated successfully",
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (err) {
+        console.error("PUT /bills/:id error:", err);
+        res.status(500).send({ message: "Failed to update bill" });
+      }
+    });
+
+    // delete a bill
+    app.delete("/bills/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await billsCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Bill not found" });
+        }
+
+        res.send({
+          message: "Bill deleted successfully",
+          deletedCount: result.deletedCount,
+        });
+      } catch (err) {
+        console.error("DELETE /bills/:id error:", err);
+        res.status(500).send({ message: "Failed to delete bill" });
+      }
+    });
+
     // API to save a payment
     app.post("/payments", async (req, res) => {
       try {
         const paymentInfo = req.body;
         paymentInfo.paymentDate = new Date();
-        const result = await paymentsCollection.insertOne(paymentInfo);
-        res.status(201).send(result);
+
+        // 1. Insert payment
+        const paymentResult = await paymentsCollection.insertOne(paymentInfo);
+
+        // 2. Update bill status to "Paid" if billId exists
+        if (paymentInfo.billId) {
+          const billUpdateResult = await billsCollection.updateOne(
+            { _id: new ObjectId(paymentInfo.billId) },
+            { $set: { status: "Paid" } }
+          );
+          console.log(
+            `Updated bill ${paymentInfo.billId} status to Paid. Modified: ${billUpdateResult.modifiedCount}`
+          );
+        }
+
+        res.status(201).send(paymentResult);
       } catch (err) {
         console.error("POST /payments error:", err);
         res.status(500).send({ message: "Failed to save payment" });
